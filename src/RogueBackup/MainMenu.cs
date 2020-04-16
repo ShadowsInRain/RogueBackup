@@ -92,8 +92,7 @@ namespace RogueBackup
                 nn,
                 "It is possible to manage single file OR entire directory.",
                 "To specify which file/directory (aka target) should be archived, RogueBackup requires config file.",
-                "Type 'new' to create example config.",
-                "Then type 'explore p', it will reveal config file in file explorer.",
+                "Type 'new' to create example config and show it in file explorer.",
                 "Open config file with your favorite text editor, edit options to match your case.",
                 "When done, type 'profile' to check if your config seems legit.",
                 nn,
@@ -196,11 +195,15 @@ namespace RogueBackup
             if (_service.ProfileExists)
             {
                 WriteLine("Profile exists already.");
-                WriteLine("Please delete file manually if you want to overwite existing profile.");
-                return this;
+                WriteLine("Please delete file manually if you want to reset existing profile.");
             }
-            _service.ResetProfile();
-            WriteLine("Profile created.");
+            else
+            {
+                _service.ResetProfile();
+                WriteLine("Profile created.");
+                WriteLine("Please type 'manual' if you need further instructions.");
+            }
+            Browse_Handler("profile");
             return this;
         }
 

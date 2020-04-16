@@ -104,7 +104,7 @@ namespace RogueBackup
             else if(HasIllegalFilenameChars(Name))
                 report("Profile name contains invalid charactes");
             ValidatePath(report, "target", Target);
-            ValidatePath(report, "storage", Target);
+            ValidatePath(report, "storage", Storage, forceDirectory: true);
             if(Capacity < 1)
                 report("Option <maxfiles> must be greater than 0.");
         }
@@ -116,10 +116,15 @@ namespace RogueBackup
                 report($"Path to <{key}> is empty.");
                 return;
             }
-            var exists = Directory.Exists(path) || (!forceDirectory && File.Exists(path));
-            if (!exists)
+            var dirExists = Directory.Exists(path);
+            var fileExists = File.Exists(path);
+            if (!dirExists && !fileExists)
             {
                 report($"Path to <{key}> does not exists or is not accessible.");
+            }
+            else if(forceDirectory && fileExists)
+            {
+                report($"Path to <{key}> must be directory.");
             }
         }
 
