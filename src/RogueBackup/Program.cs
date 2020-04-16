@@ -51,6 +51,10 @@ namespace RogueBackup
                 {
                     interpreter = interpreter.Step();
                 }
+                catch (Exception e) when (e is IOException)
+                {
+                    userIO.WriteLine($"System error: {e.Message}");
+                }
                 catch (BoringException e)
                 {
                     userIO.WriteLine($"Error: {e.Message}");

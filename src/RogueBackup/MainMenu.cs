@@ -257,11 +257,11 @@ namespace RogueBackup
         static readonly string Store_Description = "Store target into new archive.";
         Repl Store_Handler(string argv)
         {
-            // TODO consume argv
+            var suffix = argv;
             var profile = _service.LoadProfile();
-            var id = _service.GenerateArchiveId(profile);
-            WriteLine($"New id is '{id}', storing...");
-            _service.Store(profile, id);
+            var name = _service.GenerateNewArchiveName(profile, suffix);
+            WriteLine($"Creating {name}");
+            _service.Store(profile, name);
             // TODO remove old files above capacity
             WriteLine("Done");
             return this;
@@ -270,17 +270,17 @@ namespace RogueBackup
         static readonly string Restore_Description = "Restore target from most recent archive.";
         Repl Restore_Handler(string argv)
         {
-            // TODO consume argv
+            var suffix = argv;
             var profile = _service.LoadProfile();
-            var id = _service.FindMostRecentId(profile);
-            if(id == null)
+            var name = _service.FindMostRecentArchiveName(profile, suffix);
+            if(name == null)
             {
                 WriteLine("Found no matching archives!");
                 return this;
             }
-            WriteLine($"Latest id is '{id}', restoring...");
+            WriteLine($"Restoring {name}");
             // TODO option to clear destination
-            _service.Restore(profile, id);
+            _service.Restore(profile, name);
             WriteLine("Done");
             return this;
         }

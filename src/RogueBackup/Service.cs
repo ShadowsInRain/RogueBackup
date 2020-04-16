@@ -36,16 +36,17 @@ namespace RogueBackup
             Profile.Serialize(profile, new StreamWriter(file));
         }
 
-        public string GenerateArchiveId(Profile profile)
+        public string GenerateNewArchiveName(Profile profile, string suffix)
         {
+            if (!string.IsNullOrEmpty(suffix))
+                suffix = " " + suffix.Trim();
             var now = DateTime.Now;
-            var id = $"{profile.Name}-{now:yyyyMMdd}-{now:HHmmss}";
-            return id;
+            return $"{profile.Name}-{now:yyyyMMdd}-{now:HHmmss}{suffix}.{ArchiveExtension}";
         }
 
-        public void Store(Profile profile, string id)
+        public void Store(Profile profile, string name)
         {
-            var destination = Path.Join(profile.Storage, $"{id}.{ArchiveExtension}");
+            var destination = Path.Join(profile.Storage, name);
             var compression = profile.Compression ? CompressionLevel.Optimal : CompressionLevel.NoCompression;
             if (File.Exists(profile.Target))
             {
@@ -62,18 +63,18 @@ namespace RogueBackup
             }
         }
 
-        public string FindMostRecentId(Profile profile)
+        public string FindMostRecentArchiveName(Profile profile, string suffix)
         {
-            var last = new DirectoryInfo(profile.Storage).GetFiles($"{profile.Name }-*.{ArchiveExtension}").OrderBy(f => f.CreationTime).LastOrDefault();
-            if (last == null)
-                return null;
-            var id = Path.GetFileNameWithoutExtension(last.FullName);
-            return id;
+            var q = new DirectoryInfo(profile.Storage).GetFiles($"{profile.Name }-*.{ArchiveExtension}") as IEnumerable<FileInfo>;
+            if (!string.IsNullOrEmpty(suffix))
+                q = q.Where(f => f.Name.Contains(suffix, StringComparison.OrdinalIgnoreCase));
+            var last = q.OrderBy(f => f.CreationTime).LastOrDefault();
+            return last?.Name;
         }
 
-        public void Restore(Profile profile, string id)
+        public void Restore(Profile profile, string name)
         {
-            var source = Path.Join(profile.Storage, $"{id}.{ArchiveExtension}");
+            var source = Path.Join(profile.Storage, name);
             var destination = Directory.Exists(profile.Target) ? profile.Target : Directory.GetParent(profile.Target).FullName;
             ZipFile.ExtractToDirectory(source, destination, true);
         }

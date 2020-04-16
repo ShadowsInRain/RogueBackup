@@ -101,7 +101,7 @@ namespace RogueBackup
         {
             if (string.IsNullOrEmpty(Name))
                 report("Profile name is empty");
-            else if(HasIllegalFilenameChars(Name))
+            else if(Name.HasIllegalFilenameChars())
                 report("Profile name contains invalid charactes");
             ValidatePath(report, "target", Target);
             ValidatePath(report, "storage", Storage, forceDirectory: true);
@@ -126,11 +126,6 @@ namespace RogueBackup
             {
                 report($"Path to <{key}> must be directory.");
             }
-        }
-
-        static bool HasIllegalFilenameChars(string name)
-        {
-            return name.IndexOfAny(Path.GetInvalidFileNameChars()) != -1;
         }
 
         static void WriteEntry(StreamWriter writer, string key, object value, string comment)
