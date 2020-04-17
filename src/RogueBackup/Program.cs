@@ -17,6 +17,7 @@ namespace RogueBackup
             }
             catch (BoringException e)
             {
+                // for exceptions that may happen before core loop
                 log($"Error: {e.Message}");
                 log("Press any key to exit.");
                 Console.ReadKey();
@@ -41,7 +42,7 @@ namespace RogueBackup
             var config = new Config();
             CommandLine.Parse(args, config);
             var service = new Service(config);
-            var mainMenu = new MainMenu(userIO, service);
+            var mainMenu = new MainMenu(userIO, config, service);
 
             mainMenu.Welcome();
             var interpreter = mainMenu as Repl;

@@ -63,13 +63,13 @@ namespace RogueBackup
             }
         }
 
-        public string FindMostRecentArchiveName(Profile profile, string suffix)
+        public string[] FindRelevantArchivesByName(Profile profile, string suffix)
         {
             var q = new DirectoryInfo(profile.Storage).GetFiles($"{profile.Name }-*.{ArchiveExtension}") as IEnumerable<FileInfo>;
-            if (!string.IsNullOrEmpty(suffix))
+            var hasSuffix = !string.IsNullOrEmpty(suffix);
+            if (hasSuffix)
                 q = q.Where(f => f.Name.Contains(suffix, StringComparison.OrdinalIgnoreCase));
-            var last = q.OrderBy(f => f.CreationTime).LastOrDefault();
-            return last?.Name;
+            return q.OrderBy(f => f.CreationTime).Select(f => f.Name).ToArray();
         }
 
         public void Restore(Profile profile, string name)

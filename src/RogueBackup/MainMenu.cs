@@ -8,158 +8,175 @@ namespace RogueBackup
 {
     class MainMenu : Repl
     {
+        Config _config;
         Service _service;
         Command[] _commands;
-        Command[] _hiddenCommands;
-        static readonly string Prompt = ": ";
+        const string Prompt = ": ";
 
-        public MainMenu(UserIO userIO, Service service) : base(userIO)
+        public MainMenu(UserIO userIO, Config config, Service service) : base(userIO)
         {
+            _config = config;
             _service = service;
             _commands = new Command[]
             {
-                new Command(Help_Handler, Help_Description, "help", "?"),
-                new Command(Intro_Handler, Intro_Description, "manual", "rtfm"),
-                new Command(Exit_Handler, Exit_Description, "exit"),
-                new Command(Profile_Handler, Profile_Description, "profile"),
-                new Command(New_Handler, New_Description, "new"),
-                new Command(Browse_Handler, Browse_Description, "browse", "explore"),
-                new Command(Store_Handler, Store_Description, "store", "save"),
-                new Command(Restore_Handler, Restore_Description, "restore", "load"),
-            };
-            _hiddenCommands = new Command[]
-            {
-                new Command(Fight_Handler, Fight_Description, "fight", "attack", "stab"),
+                Help_Command,
+                Manual_Command,
+                Exit_Command,
+                Profile_Command,
+                Switch_Command,
+                New_Command,
+                Explore_Command,
+                Find_Command,
+                Store_Command,
+                Restore_Command,
             };
         }
 
         public override Repl Step()
         {
             var line = ReadLine(Prompt).Trim();
+            return Execute(line);
+        }
+
+        Repl Execute(string line)
+        {
             var (name, argv) = line.SplitWord();
             if (name == "")
                 return this;
             var command = Find(name) ?? throw new BoringException($"Unknown command: {name}");
-            return command.Handler(argv);
+            if (Help_Aliases().Contains(argv))
+            {
+                command = Help_Command;
+                argv = name;
+            }
+            var repl = this as Repl;
+            command.Execute(argv, ref repl);
+            return repl;
+        }
+
+        void Execute(Command command, string argv = "")
+        {
+            var name = command.GetAliases().First();
+            Execute($"{name} {argv}");
         }
 
         public void Welcome()
         {
             WriteLine("Welcome to RogueBackup!");
-            Profile_Handler("brief");
+            Execute(Profile_Command, "brief");
             WriteLine("Type '?' to list commands, type 'manual' for quick introduction.");
         }
 
-        Command? Find(string name)
+        Command Find(string name)
         {
             name = name.ToLower();
-            foreach (var commands in new[] { _commands, _hiddenCommands })
+            foreach (var command in _commands)
             {
-                foreach (var command in commands)
-                {
-                    if (command.Aliases.Contains(name))
-                        return command;
-                }
+                if (command.GetAliases().Contains(name))
+                    return command;
             }
             return null;
         }
 
-        static readonly string Help_Description = "Show this help.";
-        Repl Help_Handler(string argv)
+        Command Help_Command => new Command(Help_Aliases, Help_Description, Help_Help, Help_Execute);
+        string[] Help_Aliases() => new[] { "help", "?" };
+        string Help_Description() => "List all commands or show help for specific command.";
+        string Help_Help() => "Type 'help [<command>]' or '<command> help' to show help for given command.";
+        void Help_Execute(string argv, ref Repl repl)
         {
-            // TODO consume argv
-            WriteLine("Commands:");
-            foreach (var command in _commands)
+            var name = argv;
+            var specific = null as Command;
+            if (!string.IsNullOrEmpty(name))
             {
-                var aliasText = string.Join(", ", command.Aliases);
-                WriteLine($"* {aliasText}: {command.Description}");
+                specific = Find(name);
+                if (specific == null)
+                {
+                    WriteLine($"Unknown command '{name}'");
+                    return;
+                }
             }
-            return this;
+            if(specific != null)
+            {
+                var trueName = specific.GetAliases().First();
+                if (trueName != name)
+                    WriteLine($"'{name}' is an alias for '{trueName}'");
+                WriteLine(specific.GetHelp() ?? specific.GetDescription());
+            }
+            else
+            {
+                WriteLine(Help_Help());
+                WriteLine("All commands:");
+                foreach (var command in _commands)
+                {
+                    var aliasText = string.Join(" or ", command.GetAliases().Select(a => $"'{a}'"));
+                    WriteLine($"* {aliasText}: {command.GetDescription()}");
+                }
+            }
+            return;
         }
 
-        static readonly string Intro_Description = "Quick introduction to program, recommended for new users.";
-        Repl Intro_Handler(string argv)
+        Command Manual_Command => new Command(Manual_Aliases, Manual_Description, Manual_Help, Manual_Execute);
+        string[] Manual_Aliases() => new[] { "manual" };
+        string Manual_Description() => "Show quick introduction, recommended for new users.";
+        string Manual_Help() => null;
+        void Manual_Execute(string argv, ref Repl repl)
         {
             // TODO consume argv
             // TODO use dedicated Repl to show long text (with prompt to show more)
-            const string nn = "\n\n";
+            const string NN = "\n\n";
             var pieces = new string[]
             {
-                nn,
+                NN,
                 "RogueBackup is low latency backup manager, initially developed to fool videogames with permadeath.",
                 "Store and restore files with few keystrokes.",
                 "Our main goal is response time, so capabilities are rather barebone.",
-                nn,
+                NN,
                 "It is possible to manage single file OR entire directory.",
                 "To specify which file/directory (aka target) should be archived, RogueBackup requires config file.",
                 "Type 'new' to create example config and show it in file explorer.",
                 "Open config file with your favorite text editor, edit options to match your case.",
                 "When done, type 'profile' to check if your config seems legit.",
-                nn,
+                NN,
                 "Once configured, manage your backups with commands 'store' and 'restore' or their respective aliases 'save' and 'load'.",
-                nn,
+                NN,
                 "If you want to manage multiple configurations, path to config file may be passed as command-line argument.",
                 "Alternatively, manipulating working directory works as well.",
-                nn,
+                NN,
             };
             WriteLine(string.Join(" ", pieces));
-            return this;
         }
 
-        static readonly string Exit_Description = "Exit program. Closing window works as well.";
-        Repl Exit_Handler(string argv)
+        Command Exit_Command => new Command(Exit_Aliases, Exit_Description, Exit_Help, Exit_Execute);
+        string[] Exit_Aliases() => new[] { "exit" };
+        string Exit_Description() => "Exit program. Closing window works as well.";
+        string Exit_Help() => null;
+        void Exit_Execute(string argv, ref Repl repl)
         {
-            // TODO consume argv
+            if (!string.IsNullOrEmpty(argv))
+                throw new BoringException("Too many arguments.");
             Thread.Sleep(300);
             WriteLine("Stab!");
             Thread.Sleep(300);
-            return null; // exit
+            repl = null; // exit
         }
 
-        static readonly string Fight_Description = "Attack nearest character.";
-        Repl Fight_Handler(string argv)
-        {
-            var sequence = new string[]
-            {
-                "You attack the shopkeeper.",
-                "You miss!",
-                "Rogue stabs you!",
-                "Rogue stabs you!",
-                "You are bleeding.",
-                "Rogue stabs you!",
-                "You are bleeding.",
-                "You miss!",
-                "Rogue slams door in your face.",
-                "You are bleeding.",
-                "You are bleeding.",
-                "You are bleeding.",
-                "",
-                "You died.",
-            };
-            foreach (var line in sequence)
-            {
-                Thread.Sleep(1200);
-                WriteLine(line);
-            }
-            Thread.Sleep(2000);
-            return null; // exit
-        }
-
-        static readonly string Profile_Description = "Display current profile and check for errors.";
-        Repl Profile_Handler(string argv)
+        Command Profile_Command => new Command(Profile_Aliases, Profile_Description, Profile_Help, Profile_Execute);
+        string[] Profile_Aliases() => new[] { "profile" };
+        string Profile_Description() => "Display current profile and check for errors.";
+        string Profile_Help() => "'profile [brief]'\nShow current profile options and check for errors. In brief mode, only profile origin will be shown, unless there are errors.";
+        void Profile_Execute(string argv, ref Repl repl)
         {
             var brief = false;
             if (argv == "brief")
                 brief = true;
             else if (argv != "")
-                throw new BoringException("The only option available is 'brief'");
+                throw new BoringException("The only argument accepted is 'brief'");
 
-            // TODO consume argv
             if (!_service.ProfileExists)
             {
                 WriteLine($"Profile does not exists or is not accessible. Create one to proceed.");
                 WriteLine($"* Expected path is {_service.ProfilePathFull}");
-                return this;
+                return;
             }
             var profile = _service.LoadProfile();
             var issues = new List<string>();
@@ -181,17 +198,34 @@ namespace RogueBackup
                 WriteLine(string.Join("\n", issues.Select(i => $"* {i}")));
                 WriteLine("Please fix listed issues before proceeding.");
             }
-            else if(!brief)
+            else if (!brief)
             {
                 WriteLine("Ok! (Profile has no obvious issues.)");
             }
-            return this;
         }
 
-        static readonly string New_Description = "Create new profile with some example defaults, if it does not exists yet.";
-        Repl New_Handler(string argv)
+        Command Switch_Command => new Command(Switch_Aliases, Switch_Description, Switch_Help, Switch_Execute);
+        string[] Switch_Aliases() => new[] { "switch" };
+        string Switch_Description() => "Switch current profile.";
+        string Switch_Help() => "'switch <path>'\nSwitch current profile.";
+        void Switch_Execute(string argv, ref Repl repl)
         {
-            // TODO consume argv
+            var path = argv;
+            if (!File.Exists(path))
+                throw new BoringException("File not found");
+            _config.ProfilePath = path;
+            Execute(Profile_Command, "brief");
+        }
+
+        Command New_Command => new Command(New_Aliases, New_Description, New_Help, New_Execute);
+        string[] New_Aliases() => new[] { "new" };
+        string New_Description() => "Create new profile with some example defaults.";
+        string New_Help() => "'new [<path>]'\nCreate (and switch to) new profile, but only if it does not exists already. Profile location will be revealed in file explorer.";
+        void New_Execute(string argv, ref Repl repl)
+        {
+            var path = argv;
+            if (!string.IsNullOrEmpty(path))
+                _config.ProfilePath = path;
             if (_service.ProfileExists)
             {
                 WriteLine("Profile exists already.");
@@ -203,12 +237,14 @@ namespace RogueBackup
                 WriteLine("Profile created.");
                 WriteLine("Please type 'manual' if you need further instructions.");
             }
-            Browse_Handler("profile");
-            return this;
+            Execute(Explore_Command, "p");
         }
 
-        static readonly string Browse_Description = "Open location in file explorer.";
-        Repl Browse_Handler(string argv)
+        Command Explore_Command => new Command(Explore_Aliases, Explore_Description, Explore_Help, Explore_Execute);
+        string[] Explore_Aliases() => new[] { "explore" };
+        string Explore_Description() => "Open location in file explorer.";
+        string Explore_Help() => "'explore t|s|p|a|cwd'\nReveal location in file explorer. Possible locations are:\n* 't' or 'target'\n* 's' or 'storage'\n* 'p' or 'profile'\n* 'a' or 'program'\n* 'cwd' (current working directory)";
+        void Explore_Execute(string argv, ref Repl repl)
         {
             string path;
             switch (argv.ToLower())
@@ -229,13 +265,13 @@ namespace RogueBackup
                 case "a":
                     path = AppDomain.CurrentDomain.BaseDirectory;
                     break;
-                case "working":
-                case "w":
+                case "cwd":
                     path = Directory.GetCurrentDirectory();
                     break;
+                case "":
+                    throw new BoringException("Too few arguments");
                 default:
-                    WriteLine("Possible options are: target (t), storage (s), profile (p), program (a), working (w)");
-                    return this;
+                    throw new BoringException("Unknown option");
             }
 
             if (File.Exists(path))
@@ -249,13 +285,32 @@ namespace RogueBackup
             else
             {
                 WriteLine($"Path does not exists: {path}");
-                return this;
             }
-            return this;
         }
 
-        static readonly string Store_Description = "Store target into new archive.";
-        Repl Store_Handler(string argv)
+        Command Find_Command => new Command(Find_Aliases, Find_Description, Find_Help, Find_Execute);
+        string[] Find_Aliases() => new[] { "find" };
+        string Find_Description() => "Find archives matching query.";
+        string Find_Help() => "'find [<suffix>]'\nLists all archives matching current profile. Specify 'suffix' to filter by name. Files sorted by date, most recent last.";
+        void Find_Execute(string argv, ref Repl repl)
+        {
+            var suffix = argv;
+            var profile = _service.LoadProfile();
+            var names = _service.FindRelevantArchivesByName(profile, suffix);
+            if (names.Any())
+            {
+                foreach (var name in names)
+                    WriteLine(name);
+            }
+            else
+                WriteLine("Nothing found");
+        }
+
+        Command Store_Command => new Command(Store_Aliases, Store_Description, Store_Help, Store_Execute);
+        string[] Store_Aliases() => new[] { "store", "save" };
+        string Store_Description() => "Store target into new archive.";
+        string Store_Help() => "'store [<suffix>]'\nCreate new archive from target and put it into storage directory. If 'suffix' is specified, it will be added to archive name; use it as tag or commentary.";
+        void Store_Execute(string argv, ref Repl repl)
         {
             var suffix = argv;
             var profile = _service.LoadProfile();
@@ -264,25 +319,27 @@ namespace RogueBackup
             _service.Store(profile, name);
             // TODO remove old files above capacity
             WriteLine("Done");
-            return this;
         }
 
-        static readonly string Restore_Description = "Restore target from most recent archive.";
-        Repl Restore_Handler(string argv)
+        Command Restore_Command => new Command(Restore_Aliases, Restore_Description, Restore_Help, Restore_Execute);
+        string[] Restore_Aliases() => new[] { "restore", "load" };
+        string Restore_Description() => "Restore target from most recent archive.";
+        string Restore_Help() => "'restore [<suffix>]'\nRetore target from most recent archive. Selects from archives matching profile name, specify 'suffix' for further filtering.";
+        void Restore_Execute(string argv, ref Repl repl)
         {
             var suffix = argv;
             var profile = _service.LoadProfile();
-            var name = _service.FindMostRecentArchiveName(profile, suffix);
-            if(name == null)
+            var names = _service.FindRelevantArchivesByName(profile, suffix);
+            if(!names.Any())
             {
                 WriteLine("Found no matching archives!");
-                return this;
+                return;
             }
+            var name = names.Last();
             WriteLine($"Restoring {name}");
             // TODO option to clear destination
             _service.Restore(profile, name);
             WriteLine("Done");
-            return this;
         }
     }
 }

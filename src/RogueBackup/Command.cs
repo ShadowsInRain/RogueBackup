@@ -4,17 +4,26 @@ using System.Text;
 
 namespace RogueBackup
 {
-    struct Command
+    class Command
     {
-        public readonly string[] Aliases;
-        public string Description;
-        public readonly CommandDelegate Handler;
+        public delegate string[] AliasesGetter();
+        public readonly AliasesGetter GetAliases;
 
-        public Command(CommandDelegate handler, string description, params string[] aliases)
+        public delegate string DescriptionGetter();
+        public readonly DescriptionGetter GetDescription;
+
+        public delegate string HelpGetter();
+        public readonly HelpGetter GetHelp;
+
+        public delegate void ExecuteDelegate(string argv, ref Repl repl);
+        public readonly ExecuteDelegate Execute;
+
+        public Command(AliasesGetter aliases, DescriptionGetter description, HelpGetter help, ExecuteDelegate execute)
         {
-            Handler = handler;
-            Description = description;
-            Aliases = aliases;
+            GetAliases = aliases;
+            GetDescription = description;
+            GetHelp = help;
+            Execute = execute;
         }
     }
 }
